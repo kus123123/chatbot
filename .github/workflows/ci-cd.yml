@@ -50,25 +50,23 @@ jobs:
       SERVER_HOST: ${{ secrets.SERVER_HOST }}
       SERVER_PORT: ${{ secrets.SERVER_PORT }}
       SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
     steps:
       - name: Validate deploy secrets
         run: |
           test -n "$SERVER_HOST"
           test -n "$SERVER_USER"
+          test -n "$SERVER_PASSWORD"
 
-      - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
-
-      - name: Add server to known hosts
+      - name: Install sshpass
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p "${SERVER_PORT:-22}" -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
       - name: Deploy and restart
         run: |
-          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" <<'EOF'
+          export SSHPASS="$SERVER_PASSWORD"
+          sshpass -e ssh -o StrictHostKeyChecking=accept-new -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" <<'EOF'
             set -euo pipefail
             cd /home/naruto/chatbot
 

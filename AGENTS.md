@@ -58,3 +58,4 @@
 - 2026-03-03: Added API fallback JSON 404 handler for unknown `/api/*` routes and frontend compatibility handling to avoid rendering raw HTML error pages in status/error UI.
 - 2026-03-03: Updated desktop layout to fixed-height app shell with independent left-panel scrolling and a more compact chat panel to prevent full-page scrolling during normal use.
 - 2026-03-03: Added GitHub Actions CI/CD workflow (`.github/workflows/ci-cd.yml`) with CI checks (install, server tests, frontend build) and SSH-based auto-deploy on `main` to `naruto@76.13.247.66` with `pm2 restart chatbot`, preserving runtime `data/file-search-stores.json` during pull.
+- 2026-03-03: Updated CI/CD deploy auth from SSH key to password-based SSH (`SERVER_PASSWORD` + `sshpass`) to match current server access pattern.
