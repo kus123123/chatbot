@@ -81,6 +81,68 @@ async function uploadFileToStore({
   return operation;
 }
 
+function normalizeOperationError(error) {
+  if (!error) {
+    return null;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (typeof error.message === "string" && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error.details === "string" && error.details.trim()) {
+    return error.details.trim();
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown operation error";
+  }
+}
+
+function inProgressStatusFromMetadata(metadata) {
+  const text = JSON.stringify(metadata || {}).toLowerCase();
+  if (text.includes("pending") || text.includes("queue")) {
+    return "pending";
+  }
+
+  return "running";
+}
+
+async function getUploadOperationStatus({ operationName }) {
+  const trimmedName = String(operationName || "").trim();
+  if (!trimmedName) {
+    throw new Error("operationName is required.");
+  }
+
+  const ai = getAiClient();
+  const operation = await ai.operations.get({
+    operation: {
+      name: trimmedName,
+    },
+  });
+
+  const done = Boolean(operation?.done);
+  const error = normalizeOperationError(operation?.error);
+
+  let status = inProgressStatusFromMetadata(operation?.metadata);
+  if (done) {
+    status = error ? "failed" : "completed";
+  }
+
+  return {
+    status,
+    done,
+    error,
+    operationName: String(operation?.name || trimmedName),
+  };
+}
+
 function buildSystemInstruction(sourceLinks) {
   const hasSourceLinks = sourceLinks.length > 0;
   const linkList = sourceLinks.map((link, index) => `${index + 1}. ${link}`).join("\n");
@@ -146,13 +208,68 @@ async function generateAnswerWithFileSearch({
 
 function fallbackSuggestedQuestions() {
   return [
-    "Which locations have the highest values in this dataset?",
-    "Show the top 5 records and explain why they stand out.",
-    "Which metrics are rising fastest over time?",
-    "Are there outliers or anomaly points that need attention?",
-    "Compare recent values against previous periods and summarize changes.",
-    "What operational risks are suggested by this dataset?",
+    "Which 5 entities currently have the highest values, and what evidence supports each rank?",
+    "Which metrics show the largest week-over-week or period-over-period increase?",
+    "Which rows look like statistical outliers or anomaly candidates that need investigation?",
+    "Where do actual values exceed expected or threshold values most significantly?",
+    "Which segments are deteriorating fastest, and what pattern suggests operational risk?",
+    "Which entities improved most recently, and which metric drove that change?",
   ];
+}
+
+function sanitizeQuestionText(value) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/^[-*0-9.)\s]+/, "")
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const withoutTrailingPunctuation = normalized.replace(/[.!]+$/g, "").trim();
+  if (!withoutTrailingPunctuation) {
+    return "";
+  }
+
+  return withoutTrailingPunctuation.endsWith("?")
+    ? withoutTrailingPunctuation
+    : `${withoutTrailingPunctuation}?`;
+}
+
+function finalizeSuggestedQuestions(candidates, count) {
+  const unique = new Set();
+  const questions = [];
+
+  for (const candidate of candidates || []) {
+    const cleaned = sanitizeQuestionText(candidate);
+    if (!cleaned) {
+      continue;
+    }
+
+    if (cleaned.length < 20) {
+      continue;
+    }
+
+    if (/insufficient verified data/i.test(cleaned) || /^sources?$/i.test(cleaned)) {
+      continue;
+    }
+
+    const key = cleaned.toLowerCase();
+    if (unique.has(key)) {
+      continue;
+    }
+
+    unique.add(key);
+    questions.push(cleaned);
+
+    if (questions.length >= count) {
+      break;
+    }
+  }
+
+  return questions;
 }
 
 function parseSuggestedQuestions(rawText, count) {
@@ -245,8 +362,11 @@ async function generateSuggestedQuestions({
         parts: [
           {
             text: [
-              "Generate concise follow-up analysis questions for this uploaded dataset.",
-              "The questions must be answerable from the available data context only.",
+              "Generate high-quality follow-up analysis questions for this uploaded dataset.",
+              "Use only available dataset context and file-search evidence.",
+              "Questions must be specific and actionable, not generic.",
+              "Prioritize ranking, trend shifts, anomaly checks, threshold breaches, and operational risk.",
+              "Each question should ask for a concrete cut (top-N, period change, segment comparison, or anomaly criterion).",
               `Return exactly ${count} questions.`,
               "Return output as a JSON array of strings only.",
             ].join("\n"),
@@ -261,17 +381,21 @@ async function generateSuggestedQuestions({
     },
   });
 
-  const questions = parseSuggestedQuestions(response.text, count);
-  if (questions.length > 0) {
-    return questions;
+  const parsedQuestions = parseSuggestedQuestions(response.text, count * 2);
+  const finalized = finalizeSuggestedQuestions(parsedQuestions, count);
+  if (finalized.length >= count) {
+    return finalized.slice(0, count);
   }
 
-  return fallbackSuggestedQuestions().slice(0, count);
+  const fallback = finalizeSuggestedQuestions(fallbackSuggestedQuestions(), count);
+  const merged = finalizeSuggestedQuestions([...finalized, ...fallback], count);
+  return merged.slice(0, count);
 }
 
 module.exports = {
   createFileSearchStore,
   uploadFileToStore,
+  getUploadOperationStatus,
   generateAnswerWithFileSearch,
   generateSuggestedQuestions,
 };

@@ -16,10 +16,29 @@
     "fileSearchStoreName": "fileSearchStores/suggfiltercheck-xxq7ko8um0af",
     "displayName": "sugg-filter-check",
     "createdAt": "2026-03-02T18:47:43.567Z",
-    "updatedAt": "2026-03-02T18:47:51.030Z",
+    "updatedAt": "2026-03-02T20:37:32.300Z",
     "uploadCount": 0,
-    "queryCount": 0,
+    "queryCount": 3,
+    "suggestionCount": 2,
+    "lastSuggestedAt": "2026-03-02T20:36:58.320Z",
+    "lastUploadOperationName": null,
+    "lastUploadStatus": null,
+    "lastUploadError": null,
+    "lastUploadCheckedAt": null,
+    "lastUploadCompletedAt": null,
+    "lastQueriedAt": "2026-03-02T20:37:32.300Z"
+  },
+  {
+    "fileSearchStoreName": "fileSearchStores/testsotre-r190h21tmpoi",
+    "displayName": "testsotre",
+    "createdAt": "2026-03-02T20:28:03.709Z",
+    "updatedAt": "2026-03-02T20:33:24.392Z",
+    "uploadCount": 1,
+    "queryCount": 1,
     "suggestionCount": 1,
-    "lastSuggestedAt": "2026-03-02T18:47:51.030Z"
+    "lastUploadedFileName": "data.csv",
+    "lastUploadedAt": "2026-03-02T20:32:45.119Z",
+    "lastSuggestedAt": "2026-03-02T20:33:00.231Z",
+    "lastQueriedAt": "2026-03-02T20:33:24.392Z"
   }
 ]

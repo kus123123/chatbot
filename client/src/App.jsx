@@ -11,6 +11,26 @@ function toSourceLinks(rawText) {
     .filter(Boolean);
 }
 
+function getErrorMessage(payload) {
+  if (!payload) {
+    return "Request failed.";
+  }
+
+  if (typeof payload.error === "string" && /<html|<!doctype/i.test(payload.error)) {
+    return "Server returned an unexpected HTML error response.";
+  }
+
+  if (typeof payload.error === "string" && payload.error.trim()) {
+    return payload.error.trim();
+  }
+
+  if (typeof payload.error?.message === "string" && payload.error.message.trim()) {
+    return payload.error.message.trim();
+  }
+
+  return "Request failed.";
+}
+
 async function parseResponse(response) {
   const text = await response.text();
   let payload;
@@ -22,7 +42,10 @@ async function parseResponse(response) {
   }
 
   if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
+    const message = getErrorMessage(payload);
+    const error = new Error(message);
+    error.statusCode = response.status;
+    throw error;
   }
 
   return payload;
@@ -57,6 +80,21 @@ function getStatusLabel(status) {
   }
 }
 
+function getIndexingLabel(status) {
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "running":
+      return "Running";
+    case "completed":
+      return "Completed";
+    case "failed":
+      return "Failed";
+    default:
+      return "Unknown";
+  }
+}
+
 export default function App() {
   const [sessionId, setSessionId] = useState("");
   const [fileSearchStoreName, setFileSearchStoreName] = useState("");
@@ -76,6 +114,10 @@ export default function App() {
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isLoadingStoreHistory, setIsLoadingStoreHistory] = useState(false);
+  const [indexingStatus, setIndexingStatus] = useState("unknown");
+  const [indexingError, setIndexingError] = useState(null);
+  const [operationName, setOperationName] = useState("");
+  const [isPollingIndexStatus, setIsPollingIndexStatus] = useState(false);
 
   const sourceLinks = useMemo(() => toSourceLinks(sourceLinksText), [sourceLinksText]);
   const selectedStore = useMemo(
@@ -85,6 +127,14 @@ export default function App() {
       ) || null,
     [storeHistory, fileSearchStoreName],
   );
+
+  const hasStoreSelection = fileSearchStoreName.trim().length > 0;
+  const isIndexingInProgress = indexingStatus === "pending" || indexingStatus === "running";
+  const shouldShowIndexingWarning =
+    hasStoreSelection &&
+    (indexingStatus === "pending" ||
+      indexingStatus === "running" ||
+      indexingStatus === "failed");
 
   async function loadStoreHistory(preferredStoreName = null) {
     setIsLoadingStoreHistory(true);
@@ -105,6 +155,110 @@ export default function App() {
       setStatusText(error.message);
     } finally {
       setIsLoadingStoreHistory(false);
+    }
+  }
+
+  async function loadSuggestedQuestions(storeNameInput, { silent = false } = {}) {
+    const resolvedStoreName = String(storeNameInput || fileSearchStoreName || "").trim();
+    if (!resolvedStoreName) {
+      if (!silent) {
+        setStatusText("Provide store name before generating data-based suggestions.");
+      }
+      return;
+    }
+
+    if (isIndexingInProgress) {
+      if (!silent) {
+        setStatusText("Indexing in progress. Suggestions will be available after indexing completes.");
+      }
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    if (!silent) {
+      setStatusText("Generating suggested questions from your uploaded data...");
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/api/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileSearchStoreName: resolvedStoreName,
+          sourceLinks,
+        }),
+      });
+
+      const payload = await parseResponse(response);
+      setSuggestedQuestions(payload.questions || []);
+      if (!silent) {
+        setStatusText("Suggested questions are ready.");
+      }
+    } catch (error) {
+      if (!silent) {
+        setStatusText(error.message);
+      }
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }
+
+  async function loadIndexStatus(storeNameInput) {
+    const resolvedStoreName = String(storeNameInput || fileSearchStoreName || "").trim();
+    if (!resolvedStoreName) {
+      setIndexingStatus("unknown");
+      setIndexingError(null);
+      setOperationName("");
+      setIsPollingIndexStatus(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${apiBase}/api/file-search/status?fileSearchStoreName=${encodeURIComponent(
+          resolvedStoreName,
+        )}`,
+      );
+      const payload = await parseResponse(response);
+      const indexing = payload.indexing || {};
+      const nextStatus = String(indexing.status || "unknown");
+      const shouldAutoRefresh = nextStatus === "completed" && indexingStatus !== "completed";
+
+      setIndexingStatus(nextStatus);
+      setIndexingError(indexing.error || null);
+      setOperationName(indexing.operationName || "");
+
+      if (nextStatus === "failed") {
+        setStatusText(indexing.error || "Indexing failed. Re-upload the file to retry.");
+      } else if (nextStatus === "completed") {
+        setStatusText("Indexing completed. Dataset-backed suggestions are ready.");
+      } else if (nextStatus === "pending" || nextStatus === "running") {
+        setStatusText(`Indexing ${nextStatus}. Waiting for completion...`);
+      }
+
+      if (shouldAutoRefresh) {
+        loadSuggestedQuestions(resolvedStoreName, { silent: true });
+      }
+    } catch (error) {
+      const errorMessage = String(error?.message || "Failed to check indexing status.");
+      const missingStatusRoute =
+        Number(error?.statusCode) === 404 &&
+        /file-search\/status|route not found/i.test(errorMessage);
+
+      if (missingStatusRoute) {
+        setIndexingStatus("unknown");
+        setIndexingError(
+          "Backend does not expose /api/file-search/status. Restart the updated server to enable indexing tracking.",
+        );
+        setStatusText(
+          "Indexing status endpoint unavailable on current backend. Start/restart the latest server build.",
+        );
+        return;
+      }
+
+      setIndexingStatus("failed");
+      setIndexingError(errorMessage);
+      setStatusText(errorMessage);
     }
   }
 
@@ -135,35 +289,35 @@ export default function App() {
     };
   }, []);
 
-  async function loadSuggestedQuestions(storeNameInput) {
-    const resolvedStoreName = String(storeNameInput || fileSearchStoreName || "").trim();
+  useEffect(() => {
+    const resolvedStoreName = fileSearchStoreName.trim();
     if (!resolvedStoreName) {
-      setStatusText("Provide store name before generating data-based suggestions.");
+      setIndexingStatus("unknown");
+      setIndexingError(null);
+      setOperationName("");
+      setIsPollingIndexStatus(false);
       return;
     }
 
-    setIsLoadingSuggestions(true);
-    setStatusText("Generating suggested questions from your uploaded data...");
+    loadIndexStatus(resolvedStoreName);
+  }, [fileSearchStoreName]);
 
-    try {
-      const response = await fetch(`${apiBase}/api/suggestions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileSearchStoreName: resolvedStoreName,
-          sourceLinks,
-        }),
-      });
-
-      const payload = await parseResponse(response);
-      setSuggestedQuestions(payload.questions || []);
-      setStatusText("Suggested questions are ready.");
-    } catch (error) {
-      setStatusText(error.message);
-    } finally {
-      setIsLoadingSuggestions(false);
+  useEffect(() => {
+    const resolvedStoreName = fileSearchStoreName.trim();
+    if (!resolvedStoreName || !isIndexingInProgress) {
+      setIsPollingIndexStatus(false);
+      return;
     }
-  }
+
+    setIsPollingIndexStatus(true);
+    const timer = setTimeout(() => {
+      loadIndexStatus(resolvedStoreName);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [fileSearchStoreName, indexingStatus]);
 
   async function createStore() {
     setIsCreatingStore(true);
@@ -177,9 +331,13 @@ export default function App() {
       });
 
       const payload = await parseResponse(response);
-      setFileSearchStoreName(payload.fileSearchStoreName || "");
-      setStatusText(`Store ready: ${payload.fileSearchStoreName}`);
-      loadStoreHistory(payload.fileSearchStoreName || null);
+      const storeName = payload.fileSearchStoreName || "";
+      setFileSearchStoreName(storeName);
+      setIndexingStatus("unknown");
+      setIndexingError(null);
+      setOperationName("");
+      setStatusText(`Store ready: ${storeName}`);
+      loadStoreHistory(storeName || null);
     } catch (error) {
       setStatusText(error.message);
     } finally {
@@ -214,19 +372,26 @@ export default function App() {
 
       const payload = await parseResponse(response);
       const resolvedStoreName = payload.fileSearchStoreName || fileSearchStoreName.trim();
+      const uploadOperation = payload.uploadOperation || {};
 
       setStatusText(
         payload.message ||
           `File uploaded. Processing has started for ${selectedFile.name}. You can start chatting now.`,
       );
+      setIndexingStatus(uploadOperation.status || "pending");
+      setIndexingError(null);
+      setOperationName(uploadOperation.name || "");
+
       if (resolvedStoreName) {
         setFileSearchStoreName(resolvedStoreName);
-        loadSuggestedQuestions(resolvedStoreName);
         loadStoreHistory(resolvedStoreName);
+        loadIndexStatus(resolvedStoreName);
       }
       setSelectedFile(null);
     } catch (error) {
       setStatusText(error.message);
+      setIndexingStatus("failed");
+      setIndexingError(error.message);
     } finally {
       setIsUploadingFile(false);
     }
@@ -318,7 +483,7 @@ export default function App() {
   }
 
   async function runSuggestedQuestion(question) {
-    if (isSending) {
+    if (isSending || indexingStatus !== "completed") {
       return;
     }
 
@@ -400,7 +565,6 @@ export default function App() {
               setFileSearchStoreName(selectedName);
               if (selectedName) {
                 setStatusText(`Selected store: ${selectedName}`);
-                loadSuggestedQuestions(selectedName);
               }
             }}
           >
@@ -420,9 +584,17 @@ export default function App() {
             placeholder="filesearchstores/123456"
           />
           {selectedStore ? (
-            <p className="store-meta">
-              Uploads: {selectedStore.uploadCount || 0} | Queries: {selectedStore.queryCount || 0}
-            </p>
+            <>
+              <p className="store-meta">
+                Uploads: {selectedStore.uploadCount || 0} | Queries: {selectedStore.queryCount || 0}
+              </p>
+              <div className={`indexing-badge indexing-${indexingStatus}`}>
+                <span>Indexing: {getIndexingLabel(indexingStatus)}</span>
+                {isPollingIndexStatus ? <span className="indexing-checking">Checking...</span> : null}
+              </div>
+              {operationName ? <p className="store-meta">Operation: {operationName}</p> : null}
+              {indexingError ? <p className="indexing-error">{indexingError}</p> : null}
+            </>
           ) : null}
 
           <input
@@ -456,7 +628,11 @@ export default function App() {
               </button>
             </div>
 
-            {suggestedQuestions.length === 0 ? (
+            {isIndexingInProgress ? (
+              <p className="suggestions-empty">
+                Indexing in progress. Suggestions will be ready after indexing completes.
+              </p>
+            ) : suggestedQuestions.length === 0 ? (
               <p className="suggestions-empty">
                 Upload data, then click Refresh to generate questions based on your file.
               </p>
@@ -477,7 +653,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => runSuggestedQuestion(question)}
-                        disabled={isSending}
+                        disabled={isSending || indexingStatus !== "completed"}
                         title="Run this query now"
                       >
                         Run
@@ -494,6 +670,12 @@ export default function App() {
           <h2>Chat</h2>
           <p className="status">Status: {statusText}</p>
           <p className="status">Session: {sessionId || "Not started"}</p>
+          {shouldShowIndexingWarning ? (
+            <p className="indexing-warning">
+              Dataset indexing is {getIndexingLabel(indexingStatus).toLowerCase()}. Chat is available,
+              but file-search answers may be incomplete until indexing completes.
+            </p>
+          ) : null}
 
           <div className="messages">
             {messages.length === 0 ? (

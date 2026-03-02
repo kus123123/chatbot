@@ -6,7 +6,7 @@
 
 ## Architecture
 - `server.js` exposes `/api/chat`, `/api/file-search/store`, `/api/file-search/upload`, and `/api/health`.
-- `server.js` also exposes `/api/file-search/stores` (store history) and `/api/suggestions` (dataset-driven prompts).
+- `server.js` also exposes `/api/file-search/stores` (store history), `/api/file-search/status` (indexing status polling), and `/api/suggestions` (dataset-driven prompts).
 - `monitoring-report.js` performs deterministic comparison math (theoretical vs actual) without LLM modification.
 - `search.js` handles Gemini + optional File Search tool usage with strict factual system instructions.
 - `db-firebase.js` writes session/message history to Firestore with write timeouts so API responses are not blocked by Firebase outages/misconfiguration.
@@ -48,3 +48,11 @@
 - 2026-03-03: Added one-click “Run” action for suggested questions (direct chat execution in LLM mode).
 - 2026-03-03: Added persistent store history API + UI dropdown so users can select previously created stores and query them later.
 - 2026-03-03: Added fallback filtering for suggestion generation when model returns insufficiency text instead of usable questions.
+- 2026-03-03: Added upload operation tracking in store history and a new `/api/file-search/status` endpoint to report indexing state (`pending/running/completed/failed/unknown`).
+- 2026-03-03: Standardized error envelopes for file-search routes (`error.code` + `error.message`) and updated frontend parsing accordingly.
+- 2026-03-03: Added frontend indexing readiness UX (status badge, polling every 5s, warning banner) and gated suggested-question “Run” until indexing completes.
+- 2026-03-03: Added backend integration tests (`supertest` + Node test runner) covering upload operation metadata, file-search status API behavior, and store-history backward compatibility.
+- 2026-03-03: Changed `/api/file-search/status` behavior for stores missing in local history from `404` to `200` with `indexing.status = "unknown"` to prevent noisy frontend errors for manually entered store IDs.
+- 2026-03-03: Improved suggested-question quality by strengthening prompt instructions and adding backend post-processing (normalization, deduplication, minimum quality filter, fallback merge).
+- 2026-03-03: Added API fallback JSON 404 handler for unknown `/api/*` routes and frontend compatibility handling to avoid rendering raw HTML error pages in status/error UI.
+- 2026-03-03: Updated desktop layout to fixed-height app shell with independent left-panel scrolling and a more compact chat panel to prevent full-page scrolling during normal use.

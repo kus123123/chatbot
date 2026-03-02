@@ -8,7 +8,8 @@
     "dev:server": "node server.js",
     "dev:client": "vite --config client/vite.config.mjs",
     "build": "vite build --config client/vite.config.mjs",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:server": "node --test tests/server/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.4",
     "concurrently": "^9.2.1",
+    "supertest": "^7.2.2",
     "vite": "^7.3.1"
   }
 }
