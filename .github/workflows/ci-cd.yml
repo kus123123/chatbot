@@ -1,0 +1,95 @@
+name: CI-CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI (test + build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run server tests
+        run: pnpm run test:server
+
+      - name: Build client
+        run: pnpm run build
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+    steps:
+      - name: Validate deploy secrets
+        run: |
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_USER"
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${SERVER_PORT:-22}" -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy and restart
+        run: |
+          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" <<'EOF'
+            set -euo pipefail
+            cd /home/naruto/chatbot
+
+            # Preserve runtime-generated store history before syncing code.
+            backup_file=""
+            if [ -f data/file-search-stores.json ]; then
+              backup_file="/tmp/file-search-stores.json.bak.$(date +%s)"
+              cp data/file-search-stores.json "$backup_file"
+            fi
+
+            git restore data/file-search-stores.json || true
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            if [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
+              cp "$backup_file" data/file-search-stores.json
+            fi
+
+            source ~/.nvm/nvm.sh
+            pnpm install --frozen-lockfile
+            pm2 restart chatbot
+            curl -fsS http://127.0.0.1:3000/api/health
+          EOF
