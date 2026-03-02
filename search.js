@@ -172,6 +172,11 @@ function parseSuggestedQuestions(rawText, count) {
     if (Array.isArray(parsed)) {
       return parsed
         .map((value) => String(value || "").trim())
+        .filter(
+          (value) =>
+            !/insufficient verified data/i.test(value) &&
+            !/^sources?$/i.test(value),
+        )
         .filter(Boolean)
         .slice(0, count);
     }
@@ -185,6 +190,11 @@ function parseSuggestedQuestions(rawText, count) {
         if (Array.isArray(parsed)) {
           return parsed
             .map((value) => String(value || "").trim())
+            .filter(
+              (value) =>
+                !/insufficient verified data/i.test(value) &&
+                !/^sources?$/i.test(value),
+            )
             .filter(Boolean)
             .slice(0, count);
         }
@@ -202,6 +212,9 @@ function parseSuggestedQuestions(rawText, count) {
         .replace(/^[`"\[]+/, "")
         .replace(/[,\]`"]+$/, "")
         .trim(),
+    )
+    .filter(
+      (line) => !/insufficient verified data/i.test(line) && !/^sources?$/i.test(line),
     )
     .filter(Boolean)
     .slice(0, count);

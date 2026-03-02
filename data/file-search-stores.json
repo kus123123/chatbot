@@ -1,0 +1,25 @@
+[
+  {
+    "fileSearchStoreName": "fileSearchStores/historydemostore-w56t0ododw1n",
+    "displayName": "history-demo-store",
+    "createdAt": "2026-03-02T18:46:56.460Z",
+    "updatedAt": "2026-03-02T18:47:11.340Z",
+    "uploadCount": 1,
+    "queryCount": 1,
+    "suggestionCount": 1,
+    "lastUploadedFileName": "history-demo.csv",
+    "lastUploadedAt": "2026-03-02T18:47:02.512Z",
+    "lastSuggestedAt": "2026-03-02T18:47:06.083Z",
+    "lastQueriedAt": "2026-03-02T18:47:11.340Z"
+  },
+  {
+    "fileSearchStoreName": "fileSearchStores/suggfiltercheck-xxq7ko8um0af",
+    "displayName": "sugg-filter-check",
+    "createdAt": "2026-03-02T18:47:43.567Z",
+    "updatedAt": "2026-03-02T18:47:51.030Z",
+    "uploadCount": 0,
+    "queryCount": 0,
+    "suggestionCount": 1,
+    "lastSuggestedAt": "2026-03-02T18:47:51.030Z"
+  }
+]

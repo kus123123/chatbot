@@ -6,6 +6,7 @@
 
 ## Architecture
 - `server.js` exposes `/api/chat`, `/api/file-search/store`, `/api/file-search/upload`, and `/api/health`.
+- `server.js` also exposes `/api/file-search/stores` (store history) and `/api/suggestions` (dataset-driven prompts).
 - `monitoring-report.js` performs deterministic comparison math (theoretical vs actual) without LLM modification.
 - `search.js` handles Gemini + optional File Search tool usage with strict factual system instructions.
 - `db-firebase.js` writes session/message history to Firestore with write timeouts so API responses are not blocked by Firebase outages/misconfiguration.
@@ -14,6 +15,7 @@
 - `/api/health` includes `uploadMaxMb` so the UI can show active upload limits.
 - `/api/file-search/upload` now returns immediately with `202` and `processingStarted: true` so users can continue chatting while indexing completes.
 - `logger.js` provides shared structured console logging for backend flow tracing.
+- `store-history.js` persists file-search store metadata locally (`data/file-search-stores.json`) for dropdown selection and query continuity.
 
 ## Conventions
 - Source links are optional for both deterministic comparison and normal chat requests.
@@ -26,6 +28,7 @@
 - Firestore API may be disabled on a Firebase project by default. In that case writes fail or retry; timeout wrappers prevent hanging requests.
 - `.env` values may contain extra spaces, so env reads should always trim values.
 - Multipart uploads can exceed nominal file size due request overhead; keep a margin above intended max file size.
+- File-search indexing is asynchronous after upload; immediate queries may return insufficient data until indexing catches up.
 
 ## Performance Notes
 - Firestore writes are bounded with a short timeout to keep chat latency stable even when DB writes are unavailable.
@@ -42,3 +45,6 @@
 - 2026-03-03: Improved assistant message formatting by rendering markdown (lists/headings/tables) in the chat UI instead of plain raw text.
 - 2026-03-03: Added data-driven suggested questions endpoint (`/api/suggestions`) and UI panel with refresh + click-to-fill prompts.
 - 2026-03-03: Strengthened suggested-question parser to handle fenced JSON responses safely.
+- 2026-03-03: Added one-click “Run” action for suggested questions (direct chat execution in LLM mode).
+- 2026-03-03: Added persistent store history API + UI dropdown so users can select previously created stores and query them later.
+- 2026-03-03: Added fallback filtering for suggestion generation when model returns insufficiency text instead of usable questions.
