@@ -3,13 +3,13 @@
     "fileSearchStoreName": "fileSearchStores/historydemostore-w56t0ododw1n",
     "displayName": "history-demo-store",
     "createdAt": "2026-03-02T18:46:56.460Z",
-    "updatedAt": "2026-03-02T18:47:11.340Z",
+    "updatedAt": "2026-03-02T19:10:20.116Z",
     "uploadCount": 1,
     "queryCount": 1,
-    "suggestionCount": 1,
+    "suggestionCount": 2,
     "lastUploadedFileName": "history-demo.csv",
     "lastUploadedAt": "2026-03-02T18:47:02.512Z",
-    "lastSuggestedAt": "2026-03-02T18:47:06.083Z",
+    "lastSuggestedAt": "2026-03-02T19:10:20.116Z",
     "lastQueriedAt": "2026-03-02T18:47:11.340Z"
   },
   {
@@ -21,5 +21,18 @@
     "queryCount": 0,
     "suggestionCount": 1,
     "lastSuggestedAt": "2026-03-02T18:47:51.030Z"
+  },
+  {
+    "fileSearchStoreName": "fileSearchStores/aqiindia-0ufidyyj9c3v",
+    "displayName": "aqi-india",
+    "createdAt": "2026-03-02T19:10:37.979Z",
+    "updatedAt": "2026-03-02T19:12:13.104Z",
+    "uploadCount": 1,
+    "queryCount": 2,
+    "suggestionCount": 2,
+    "lastUploadedFileName": "data.csv",
+    "lastUploadedAt": "2026-03-02T19:10:50.980Z",
+    "lastSuggestedAt": "2026-03-02T19:10:56.322Z",
+    "lastQueriedAt": "2026-03-02T19:12:13.104Z"
   }
 ]
