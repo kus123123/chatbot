@@ -74,7 +74,13 @@ jobs:
           CLEAN_PASSWORD="${SERVER_PASSWORD%$'\r'}"
           CLEAN_PASSWORD="${CLEAN_PASSWORD%$'\n'}"
           export SSHPASS="$CLEAN_PASSWORD"
-          sshpass -e ssh -o StrictHostKeyChecking=accept-new -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" <<'EOF'
+          sshpass -p "$CLEAN_PASSWORD" ssh -T \
+            -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o NumberOfPasswordPrompts=1 \
+            -p "${SERVER_PORT:-22}" \
+            "${SERVER_USER}@${SERVER_HOST}" <<'EOF'
             set -euo pipefail
             cd /home/naruto/chatbot
 
