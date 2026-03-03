@@ -54,9 +54,14 @@ jobs:
     steps:
       - name: Validate deploy secrets
         run: |
-          test -n "$SERVER_HOST"
-          test -n "$SERVER_USER"
-          test -n "$SERVER_PASSWORD"
+          missing=()
+          [ -n "$SERVER_HOST" ] || missing+=("SERVER_HOST")
+          [ -n "$SERVER_USER" ] || missing+=("SERVER_USER")
+          [ -n "$SERVER_PASSWORD" ] || missing+=("SERVER_PASSWORD")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required GitHub Actions secrets: ${missing[*]}"
+            exit 1
+          fi
 
       - name: Install sshpass
         run: |
