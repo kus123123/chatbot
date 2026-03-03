@@ -104,16 +104,11 @@ jobs:
             pnpm install --frozen-lockfile
             pm2 restart chatbot
 
-            # Give the app time to boot before declaring deploy failed.
-            for i in $(seq 1 30); do
-              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
-                curl -fsS http://127.0.0.1:3000/api/health
-                exit 0
-              fi
-              sleep 2
-            done
-
-            echo "Health check failed after restart. Recent PM2 logs:"
-            pm2 logs chatbot --lines 80 --nostream || true
-            exit 1
+            # Wait for the service to accept connections after restart.
+            if ! curl -fsS --retry 30 --retry-delay 2 --retry-connrefused \
+              http://127.0.0.1:3000/api/health; then
+              echo "Health check failed after restart. Recent PM2 logs:"
+              pm2 logs chatbot --lines 80 --nostream || true
+              exit 1
+            fi
           EOF
