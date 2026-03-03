@@ -13,6 +13,8 @@ const { createLogger } = require("./logger");
 
 const {
   createFileSearchStore,
+  listFileSearchStoresFromDatabase,
+  deleteFileSearchStoreFromDatabase,
   uploadFileToStore,
   getUploadOperationStatus,
   generateAnswerWithFileSearch,
@@ -27,12 +29,18 @@ const {
   listFileSearchStores,
   getFileSearchStoreByName,
   upsertFileSearchStore,
+  deleteFileSearchStoreByName,
 } = require("./store-history");
 
 const logger = createLogger("server");
 const PORT = Number(process.env.PORT) || 3000;
 const UPLOAD_DIR = path.join(process.cwd(), "tmp-uploads");
 const FILE_UPLOAD_MAX_MB = Number(process.env.FILE_UPLOAD_MAX_MB) || 15;
+const MAX_FILE_SEARCH_STORE_LIST_LIMIT = 20;
+const ALLOW_FILE_SEARCH_STORE_DELETE =
+  String(process.env.ALLOW_FILE_SEARCH_STORE_DELETE || "true")
+    .trim()
+    .toLowerCase() !== "false";
 
 function getCorsOrigins() {
   const originEnv = process.env.CORS_ORIGIN;
@@ -125,6 +133,15 @@ function normalizeOperationError(error) {
   }
 }
 
+function normalizeListLimit(limitInput, fallback = 100) {
+  const numeric = Number(limitInput);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return Math.min(Math.floor(fallback), MAX_FILE_SEARCH_STORE_LIST_LIMIT);
+  }
+
+  return Math.min(Math.floor(numeric), MAX_FILE_SEARCH_STORE_LIST_LIMIT);
+}
+
 function sendError(res, statusCode, code, message) {
   return res.status(statusCode).json({
     error: {
@@ -159,6 +176,10 @@ function createApp(deps = {}) {
   const uploadDir = deps.uploadDir || UPLOAD_DIR;
 
   const createFileSearchStoreFn = deps.createFileSearchStore || createFileSearchStore;
+  const listDatabaseFileSearchStoresFn =
+    deps.listDatabaseFileSearchStores || listFileSearchStoresFromDatabase;
+  const deleteDatabaseFileSearchStoreFn =
+    deps.deleteDatabaseFileSearchStore || deleteFileSearchStoreFromDatabase;
   const uploadFileToStoreFn = deps.uploadFileToStore || uploadFileToStore;
   const getUploadOperationStatusFn = deps.getUploadOperationStatus || getUploadOperationStatus;
   const generateAnswerWithFileSearchFn =
@@ -177,6 +198,10 @@ function createApp(deps = {}) {
   const getFileSearchStoreByNameFn =
     deps.getFileSearchStoreByName || getFileSearchStoreByName;
   const upsertFileSearchStoreFn = deps.upsertFileSearchStore || upsertFileSearchStore;
+  const deleteFileSearchStoreHistoryFn =
+    deps.deleteFileSearchStoreHistory || deleteFileSearchStoreByName;
+  const canDeleteStores =
+    typeof deps.allowStoreDelete === "boolean" ? deps.allowStoreDelete : ALLOW_FILE_SEARCH_STORE_DELETE;
 
   const upload = multer({
     dest: uploadDir,
@@ -289,16 +314,61 @@ function createApp(deps = {}) {
     const requestId = req.requestId || null;
 
     try {
-      const limit = req.query?.limit;
-      const stores = await listFileSearchStoresFn({ limit });
+      const limit = normalizeListLimit(req.query?.limit, 100);
+      const [databaseStores, historyStores] = await Promise.all([
+        listDatabaseFileSearchStoresFn({ limit }),
+        listFileSearchStoresFn({ limit: 200 }),
+      ]);
+
+      const historyByName = new Map(
+        historyStores.map((store) => [store.fileSearchStoreName, store]),
+      );
+
+      const stores = databaseStores
+        .map((store) => {
+          const fileSearchStoreName = String(store?.name || "").trim();
+          if (!fileSearchStoreName) {
+            return null;
+          }
+
+          const history = historyByName.get(fileSearchStoreName) || {};
+
+          return {
+            fileSearchStoreName,
+            displayName: String(
+              store?.displayName || history.displayName || fileSearchStoreName,
+            ),
+            createdAt: store?.createTime || history.createdAt || null,
+            updatedAt: store?.updateTime || history.updatedAt || null,
+            uploadCount: Number(history.uploadCount || 0),
+            queryCount: Number(history.queryCount || 0),
+            suggestionCount: Number(history.suggestionCount || 0),
+            lastUploadedFileName: history.lastUploadedFileName || null,
+            lastUploadedAt: history.lastUploadedAt || null,
+            lastSuggestedAt: history.lastSuggestedAt || null,
+            lastQueriedAt: history.lastQueriedAt || null,
+            lastUploadOperationName: history.lastUploadOperationName || null,
+            lastUploadStatus: history.lastUploadStatus || null,
+            lastUploadError: history.lastUploadError || null,
+            lastUploadCheckedAt: history.lastUploadCheckedAt || null,
+            lastUploadCompletedAt: history.lastUploadCompletedAt || null,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+        .slice(0, limit);
 
       loggerInstance.info("file_search.store.list.success", {
         requestId,
         count: stores.length,
+        canDeleteStores,
       });
 
       return res.json({
         stores,
+        permissions: {
+          canDelete: canDeleteStores,
+        },
       });
     } catch (error) {
       loggerInstance.error("file_search.store.list.failed", {
@@ -311,6 +381,64 @@ function createApp(deps = {}) {
         500,
         "INTERNAL_ERROR",
         error.message || "Failed to list file search stores.",
+      );
+    }
+  });
+
+  app.delete("/api/file-search/store", async (req, res) => {
+    const requestId = req.requestId || null;
+
+    try {
+      if (!canDeleteStores) {
+        return sendError(
+          res,
+          403,
+          "PERMISSION_DENIED",
+          "Store deletion is disabled for this environment.",
+        );
+      }
+
+      const fileSearchStoreName = String(
+        req.query?.fileSearchStoreName || req.body?.fileSearchStoreName || "",
+      ).trim();
+
+      if (!fileSearchStoreName) {
+        return sendError(
+          res,
+          400,
+          "VALIDATION_ERROR",
+          "fileSearchStoreName is required.",
+        );
+      }
+
+      await deleteDatabaseFileSearchStoreFn({
+        fileSearchStoreName,
+        force: true,
+      });
+
+      const removedFromHistory = await deleteFileSearchStoreHistoryFn(fileSearchStoreName);
+
+      loggerInstance.info("file_search.store.delete.success", {
+        requestId,
+        fileSearchStoreName,
+        removedFromHistory,
+      });
+
+      return res.json({
+        deleted: true,
+        fileSearchStoreName,
+      });
+    } catch (error) {
+      loggerInstance.error("file_search.store.delete.failed", {
+        requestId,
+        error: error.message,
+      });
+
+      return sendError(
+        res,
+        502,
+        "UPSTREAM_ERROR",
+        error.message || "Failed to delete file search store.",
       );
     }
   });

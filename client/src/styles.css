@@ -160,6 +160,16 @@ button:disabled {
   background: #dbe9ee;
 }
 
+.danger-btn {
+  background: #f8e4e4;
+  color: #7f2121;
+  border: 1px solid #efc4c4;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: #f2d5d5;
+}
+
 .store-meta {
   margin: 0.45rem 0 0;
   color: var(--muted);

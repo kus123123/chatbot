@@ -1,0 +1,47 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Realtime Monitoring Expert Chatbot" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Compares theoretical vs actual data with deterministic calculations and uses verifiable sources only.
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - heading "Data and Sources" [level=2] [ref=e9]
+      - generic [ref=e10]: Source links (optional, one per line)
+      - textbox "Source links (optional, one per line)" [ref=e11]:
+        - /placeholder: https://example.com/realtime-dashboard\nhttps://example.com/theoretical-model
+      - generic [ref=e12]: Theoretical data (JSON)
+      - textbox "Theoretical data (JSON)" [ref=e13]:
+        - /placeholder: "{\"temperature\": 65, \"pressure\": 120}"
+      - generic [ref=e14]: Actual data (JSON)
+      - textbox "Actual data (JSON)" [ref=e15]:
+        - /placeholder: "{\"temperature\": 63.5, \"pressure\": 128}"
+      - heading "Google File Search" [level=3] [ref=e16]
+      - generic [ref=e17]: Store display name
+      - textbox "Store display name" [ref=e18]: realtime-monitoring-store
+      - generic [ref=e19]:
+        - button "Create Store" [ref=e20] [cursor=pointer]
+        - button "Loading stores..." [disabled] [ref=e21]
+        - button "Remove Store" [disabled] [ref=e22]
+      - generic [ref=e23]: Store history
+      - combobox "Store history" [ref=e24]:
+        - option "Select a store from history" [selected]
+      - generic [ref=e25]: Store name
+      - textbox "Store name" [ref=e26]:
+        - /placeholder: filesearchstores/123456
+      - button "Choose File" [ref=e27]
+      - button "Upload File" [ref=e28] [cursor=pointer]
+      - paragraph [ref=e29]: "Upload limit: 30MB."
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - heading "Suggested Questions" [level=3] [ref=e32]
+          - button "Refresh" [ref=e33] [cursor=pointer]
+        - paragraph [ref=e34]: Upload data, then click Refresh to generate questions based on your file.
+    - generic [ref=e35]:
+      - heading "Chat" [level=2] [ref=e36]
+      - paragraph [ref=e37]: "Status: Ready"
+      - paragraph [ref=e38]: "Session: Not started"
+      - paragraph [ref=e40]: No messages yet.
+      - generic [ref=e41]:
+        - generic [ref=e42]: Prompt (optional when sending comparison JSON)
+        - textbox "Prompt (optional when sending comparison JSON)" [ref=e43]:
+          - /placeholder: Analyze the variance and summarize operational risk.
+        - button "Send" [ref=e44] [cursor=pointer]

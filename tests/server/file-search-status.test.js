@@ -71,11 +71,85 @@ function createTestApp(overrides = {}) {
       return [];
     },
     listFileSearchStores: async () => [],
+    listDatabaseFileSearchStores: async () => [],
     getFileSearchStoreByName: async () => null,
     upsertFileSearchStore: async () => {},
+    deleteDatabaseFileSearchStore: async () => {},
+    deleteFileSearchStoreHistory: async () => false,
+    allowStoreDelete: true,
     ...overrides,
   });
 }
+
+test("GET /api/file-search/stores lists stores from database and merges local counters", async () => {
+  const app = createTestApp({
+    listDatabaseFileSearchStores: async () => [
+      {
+        name: "fileSearchStores/alpha",
+        displayName: "alpha-store",
+        createTime: "2026-03-03T00:00:00.000Z",
+        updateTime: "2026-03-03T00:10:00.000Z",
+      },
+    ],
+    listFileSearchStores: async () => [
+      {
+        fileSearchStoreName: "fileSearchStores/alpha",
+        uploadCount: 2,
+        queryCount: 5,
+        suggestionCount: 1,
+      },
+    ],
+  });
+
+  const response = await request(app).get("/api/file-search/stores").query({ limit: 100 });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.permissions.canDelete, true);
+  assert.equal(response.body.stores.length, 1);
+  assert.equal(response.body.stores[0].fileSearchStoreName, "fileSearchStores/alpha");
+  assert.equal(response.body.stores[0].displayName, "alpha-store");
+  assert.equal(response.body.stores[0].uploadCount, 2);
+  assert.equal(response.body.stores[0].queryCount, 5);
+});
+
+test("DELETE /api/file-search/store validates permission", async () => {
+  const app = createTestApp({
+    allowStoreDelete: false,
+  });
+
+  const response = await request(app)
+    .delete("/api/file-search/store")
+    .query({ fileSearchStoreName: "fileSearchStores/alpha" });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error.code, "PERMISSION_DENIED");
+});
+
+test("DELETE /api/file-search/store deletes in database and local history", async () => {
+  const deleteCalls = [];
+  const historyDeleteCalls = [];
+  const app = createTestApp({
+    deleteDatabaseFileSearchStore: async (payload) => {
+      deleteCalls.push(payload);
+    },
+    deleteFileSearchStoreHistory: async (name) => {
+      historyDeleteCalls.push(name);
+      return true;
+    },
+  });
+
+  const response = await request(app)
+    .delete("/api/file-search/store")
+    .query({ fileSearchStoreName: "fileSearchStores/alpha" });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.deleted, true);
+  assert.equal(response.body.fileSearchStoreName, "fileSearchStores/alpha");
+  assert.equal(deleteCalls.length, 1);
+  assert.equal(deleteCalls[0].fileSearchStoreName, "fileSearchStores/alpha");
+  assert.equal(deleteCalls[0].force, true);
+  assert.deepEqual(historyDeleteCalls, ["fileSearchStores/alpha"]);
+});
 
 test("POST /api/file-search/upload returns operation metadata", async () => {
   const upserts = [];

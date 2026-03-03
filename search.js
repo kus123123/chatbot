@@ -4,6 +4,8 @@ const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const FILE_UPLOAD_POLL_INTERVAL_MS = 5000;
 const FILE_UPLOAD_MAX_ATTEMPTS = 36;
 const DEFAULT_SUGGESTION_COUNT = Number(process.env.SUGGESTION_COUNT) || 6;
+const DEFAULT_STORE_LIST_LIMIT = 100;
+const MAX_STORE_LIST_LIMIT = 20;
 
 let aiClient;
 
@@ -34,6 +36,50 @@ async function createFileSearchStore(displayName) {
   });
 
   return fileSearchStore;
+}
+
+function normalizeStoreListLimit(limitInput) {
+  const numeric = Number(limitInput);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return MAX_STORE_LIST_LIMIT;
+  }
+
+  return Math.min(Math.floor(numeric), MAX_STORE_LIST_LIMIT);
+}
+
+async function listFileSearchStoresFromDatabase({ limit = DEFAULT_STORE_LIST_LIMIT } = {}) {
+  const ai = getAiClient();
+  const pageSize = normalizeStoreListLimit(limit);
+  const pager = await ai.fileSearchStores.list({
+    config: {
+      pageSize,
+    },
+  });
+
+  const stores = [];
+  for await (const store of pager) {
+    stores.push(store);
+    if (stores.length >= pageSize) {
+      break;
+    }
+  }
+
+  return stores;
+}
+
+async function deleteFileSearchStoreFromDatabase({ fileSearchStoreName, force = true }) {
+  const name = String(fileSearchStoreName || "").trim();
+  if (!name) {
+    throw new Error("fileSearchStoreName is required to delete a file search store.");
+  }
+
+  const ai = getAiClient();
+  await ai.fileSearchStores.delete({
+    name,
+    config: {
+      force: Boolean(force),
+    },
+  });
 }
 
 async function waitForOperation(operation) {
@@ -394,6 +440,8 @@ async function generateSuggestedQuestions({
 
 module.exports = {
   createFileSearchStore,
+  listFileSearchStoresFromDatabase,
+  deleteFileSearchStoreFromDatabase,
   uploadFileToStore,
   getUploadOperationStatus,
   generateAnswerWithFileSearch,

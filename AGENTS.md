@@ -55,6 +55,7 @@
 - 2026-03-03: Changed `/api/file-search/status` behavior for stores missing in local history from `404` to `200` with `indexing.status = "unknown"` to prevent noisy frontend errors for manually entered store IDs.
 - 2026-03-03: Improved suggested-question quality by strengthening prompt instructions and adding backend post-processing (normalization, deduplication, minimum quality filter, fallback merge).
 - 2026-03-03: Switched `/api/file-search/stores` to Gemini database-backed listing (merged with local counters), added delete-store API with permission gating and history cleanup, and updated UI dropdown labels to `displayName (full store id)` plus one-click remove action.
+- 2026-03-03: Validated UI with Playwright CLI and fixed Gemini list pagination bug by clamping file-search store list page size to 20 (Gemini API max), resolving `/api/file-search/stores?limit=100` runtime 500s.
 - 2026-03-03: Added API fallback JSON 404 handler for unknown `/api/*` routes and frontend compatibility handling to avoid rendering raw HTML error pages in status/error UI.
 - 2026-03-03: Updated desktop layout to fixed-height app shell with independent left-panel scrolling and a more compact chat panel to prevent full-page scrolling during normal use.
 - 2026-03-03: Added GitHub Actions CI/CD workflow (`.github/workflows/ci-cd.yml`) with CI checks (install, server tests, frontend build) and SSH-based auto-deploy on `main` to `naruto@76.13.247.66` with `pm2 restart chatbot`, preserving runtime `data/file-search-stores.json` during pull.

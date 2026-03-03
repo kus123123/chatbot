@@ -1,0 +1,70 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Realtime Monitoring Expert Chatbot" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Compares theoretical vs actual data with deterministic calculations and uses verifiable sources only.
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - heading "Data and Sources" [level=2] [ref=e9]
+      - generic [ref=e10]: Source links (optional, one per line)
+      - textbox "Source links (optional, one per line)" [ref=e11]:
+        - /placeholder: https://example.com/realtime-dashboard\nhttps://example.com/theoretical-model
+      - generic [ref=e12]: Theoretical data (JSON)
+      - textbox "Theoretical data (JSON)" [ref=e13]:
+        - /placeholder: "{\"temperature\": 65, \"pressure\": 120}"
+      - generic [ref=e14]: Actual data (JSON)
+      - textbox "Actual data (JSON)" [ref=e15]:
+        - /placeholder: "{\"temperature\": 63.5, \"pressure\": 128}"
+      - heading "Google File Search" [level=3] [ref=e16]
+      - generic [ref=e17]: Store display name
+      - textbox "Store display name" [ref=e18]: realtime-monitoring-store
+      - generic [ref=e19]:
+        - button "Create Store" [ref=e20] [cursor=pointer]
+        - button "Refresh stores" [ref=e21] [cursor=pointer]
+        - button "Remove Store" [ref=e22] [cursor=pointer]
+      - generic [ref=e23]: Store history
+      - combobox "Store history" [ref=e24]:
+        - option "Select a store from history"
+        - option "plant monitoring (fileSearchStores/plant-monitoring-ryfch0ljxbrd)" [selected]
+        - option "realtime-monitoring-store (fileSearchStores/realtimemonitoringstore-0x4lqidz05l8)"
+        - option "realtime-monitoring-store (fileSearchStores/realtimemonitoringstore-jk8we396uqa6)"
+        - option "csv-upload-check3 (fileSearchStores/csvuploadcheck3-pj5jv9gpkhp7)"
+        - option "csv-direct-test (fileSearchStores/csvdirecttest-eyffd29wikbb)"
+        - option "csv-upload-check2 (fileSearchStores/csvuploadcheck2-kv0h3xjjrz5k)"
+        - option "csv-upload-check (fileSearchStores/csvuploadcheck-ekjf7liw4xe9)"
+        - option "realtime-monitoring-store (fileSearchStores/realtimemonitoringstore-btn3njfmdv6k)"
+        - option "realtime-monitoring-store (fileSearchStores/realtimemonitoringstore-gvnrk5k89qul)"
+        - option "monitoring-query-test (fileSearchStores/monitoringquerytest-3r6jbof3jnv6)"
+        - option "monitoring-upload-test (fileSearchStores/monitoringuploadtest-a9ajdcp4ygce)"
+        - option "monitoring-upload-test (fileSearchStores/monitoringuploadtest-098p8w3lmvyp)"
+        - option "monitoring-store-test (fileSearchStores/monitoringstoretest-54qyuoh3vw0y)"
+        - option "PDFVaultStore (fileSearchStores/pdfvaultstore-mfeisfsl4lbj)"
+        - option "PDFVaultStore (fileSearchStores/pdfvaultstore-yf8v8ko2w0sr)"
+        - option "fileSearchStores/0hd9rf2bz70l-s7nmuiiu2je3 (fileSearchStores/0hd9rf2bz70l-s7nmuiiu2je3)"
+        - option "fileSearchStores/fm9tp4gljt18-9tj8y0xjgkmx (fileSearchStores/fm9tp4gljt18-9tj8y0xjgkmx)"
+        - option "fileSearchStores/b0z3shqtlbw9-ssogud6i68ou (fileSearchStores/b0z3shqtlbw9-ssogud6i68ou)"
+        - option "fileSearchStores/egfq5nhx7rlc-0v59e3b2boaa (fileSearchStores/egfq5nhx7rlc-0v59e3b2boaa)"
+        - option "fileSearchStores/62gxnyfvt9pf-eguslc33e318 (fileSearchStores/62gxnyfvt9pf-eguslc33e318)"
+      - generic [ref=e25]: Store name
+      - textbox "Store name" [ref=e26]:
+        - /placeholder: filesearchstores/123456
+        - text: fileSearchStores/plant-monitoring-ryfch0ljxbrd
+      - paragraph [ref=e27]: "Uploads: 0 | Queries: 0"
+      - generic [ref=e29]: "Indexing: Unknown"
+      - button "Choose File" [ref=e30]
+      - button "Upload File" [ref=e31] [cursor=pointer]
+      - paragraph [ref=e32]: "Upload limit: 30MB."
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - heading "Suggested Questions" [level=3] [ref=e35]
+          - button "Refresh" [ref=e36] [cursor=pointer]
+        - paragraph [ref=e37]: Upload data, then click Refresh to generate questions based on your file.
+    - generic [ref=e38]:
+      - heading "Chat" [level=2] [ref=e39]
+      - paragraph [ref=e40]: "Status: Ready"
+      - paragraph [ref=e41]: "Session: Not started"
+      - paragraph [ref=e43]: No messages yet.
+      - generic [ref=e44]:
+        - generic [ref=e45]: Prompt (optional when sending comparison JSON)
+        - textbox "Prompt (optional when sending comparison JSON)" [ref=e46]:
+          - /placeholder: Analyze the variance and summarize operational risk.
+        - button "Send" [ref=e47] [cursor=pointer]

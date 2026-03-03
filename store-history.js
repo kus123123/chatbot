@@ -186,8 +186,28 @@ async function upsertFileSearchStore(input = {}) {
   });
 }
 
+async function deleteFileSearchStoreByName(fileSearchStoreName) {
+  const targetName = String(fileSearchStoreName || "").trim();
+  if (!targetName) {
+    return false;
+  }
+
+  return withWriteLock(async () => {
+    const stores = await readStoresUnsafe();
+    const index = stores.findIndex((store) => store.fileSearchStoreName === targetName);
+    if (index < 0) {
+      return false;
+    }
+
+    stores.splice(index, 1);
+    await writeStoresUnsafe(stores);
+    return true;
+  });
+}
+
 module.exports = {
   listFileSearchStores,
   getFileSearchStoreByName,
   upsertFileSearchStore,
+  deleteFileSearchStoreByName,
 };

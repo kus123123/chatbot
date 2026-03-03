@@ -114,6 +114,8 @@ export default function App() {
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isLoadingStoreHistory, setIsLoadingStoreHistory] = useState(false);
+  const [isDeletingStore, setIsDeletingStore] = useState(false);
+  const [canDeleteStore, setCanDeleteStore] = useState(false);
   const [indexingStatus, setIndexingStatus] = useState("unknown");
   const [indexingError, setIndexingError] = useState(null);
   const [operationName, setOperationName] = useState("");
@@ -144,12 +146,20 @@ export default function App() {
       const payload = await parseResponse(response);
       const stores = payload.stores || [];
       setStoreHistory(stores);
+      setCanDeleteStore(Boolean(payload?.permissions?.canDelete));
 
       const preferred = String(preferredStoreName || "").trim();
       if (preferred) {
         setFileSearchStoreName(preferred);
-      } else if (!fileSearchStoreName && stores.length > 0) {
+      } else if (
+        fileSearchStoreName &&
+        stores.some((store) => store.fileSearchStoreName === fileSearchStoreName)
+      ) {
+        setFileSearchStoreName(fileSearchStoreName);
+      } else if (stores.length > 0) {
         setFileSearchStoreName(stores[0].fileSearchStoreName);
+      } else {
+        setFileSearchStoreName("");
       }
     } catch (error) {
       setStatusText(error.message);
@@ -397,6 +407,51 @@ export default function App() {
     }
   }
 
+  async function deleteStore() {
+    const targetStoreName = fileSearchStoreName.trim();
+    if (!targetStoreName) {
+      setStatusText("Select a store to remove.");
+      return;
+    }
+
+    if (!canDeleteStore) {
+      setStatusText("You do not have permission to remove stores.");
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Remove store ${targetStoreName}? This deletes the store and its indexed documents.`,
+    );
+    if (!shouldDelete) {
+      return;
+    }
+
+    setIsDeletingStore(true);
+    setStatusText(`Removing store ${targetStoreName}...`);
+
+    try {
+      const response = await fetch(
+        `${apiBase}/api/file-search/store?fileSearchStoreName=${encodeURIComponent(targetStoreName)}`,
+        {
+          method: "DELETE",
+        },
+      );
+      await parseResponse(response);
+
+      setFileSearchStoreName("");
+      setIndexingStatus("unknown");
+      setIndexingError(null);
+      setOperationName("");
+      setSuggestedQuestions([]);
+      setStatusText(`Removed store: ${targetStoreName}`);
+      loadStoreHistory();
+    } catch (error) {
+      setStatusText(error.message);
+    } finally {
+      setIsDeletingStore(false);
+    }
+  }
+
   async function sendChatRequest({
     messageOverride = null,
     llmOnly = false,
@@ -554,6 +609,15 @@ export default function App() {
             >
               {isLoadingStoreHistory ? "Loading stores..." : "Refresh stores"}
             </button>
+            <button
+              type="button"
+              className="danger-btn"
+              onClick={deleteStore}
+              disabled={isDeletingStore || !fileSearchStoreName.trim() || !canDeleteStore}
+              title={canDeleteStore ? "Delete selected store" : "Store deletion disabled"}
+            >
+              {isDeletingStore ? "Removing..." : "Remove Store"}
+            </button>
           </div>
 
           <label htmlFor="store-history">Store history</label>
@@ -571,7 +635,7 @@ export default function App() {
             <option value="">Select a store from history</option>
             {storeHistory.map((store) => (
               <option key={store.fileSearchStoreName} value={store.fileSearchStoreName}>
-                {(store.displayName || store.fileSearchStoreName).slice(0, 46)}
+                {`${store.displayName || store.fileSearchStoreName} (${store.fileSearchStoreName})`}
               </option>
             ))}
           </select>
